@@ -513,6 +513,76 @@ describe("agentCommand", () => {
     });
   });
 
+  it("preserves the original prompt on fallback retries for subagent announce flows", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      mockConfig(home, store, {
+        model: {
+          primary: "anthropic/claude-opus-4-5",
+          fallbacks: ["openai/gpt-5.2"],
+        },
+        models: {
+          "anthropic/claude-opus-4-5": {},
+          "openai/gpt-5.2": {},
+        },
+      });
+
+      vi.mocked(runEmbeddedPiAgent)
+        .mockRejectedValueOnce(Object.assign(new Error("rate limited"), { status: 429 }))
+        .mockResolvedValueOnce(createDefaultAgentResult());
+
+      const completionPayload = "done / in progress / blocked / next";
+      await agentCommand(
+        {
+          message: completionPayload,
+          to: "+1555",
+          inputProvenance: {
+            kind: "inter_session",
+            sourceTool: "subagent_announce",
+          },
+        },
+        runtime,
+      );
+
+      const prompts = vi.mocked(runEmbeddedPiAgent).mock.calls.map((call) => call[0]?.prompt);
+      expect(prompts).toEqual([completionPayload, completionPayload]);
+    });
+  });
+
+  it("keeps the generic fallback retry prompt for ordinary conversations", async () => {
+    await withTempHome(async (home) => {
+      const store = path.join(home, "sessions.json");
+      mockConfig(home, store, {
+        model: {
+          primary: "anthropic/claude-opus-4-5",
+          fallbacks: ["openai/gpt-5.2"],
+        },
+        models: {
+          "anthropic/claude-opus-4-5": {},
+          "openai/gpt-5.2": {},
+        },
+      });
+
+      vi.mocked(runEmbeddedPiAgent)
+        .mockRejectedValueOnce(Object.assign(new Error("rate limited"), { status: 429 }))
+        .mockResolvedValueOnce(createDefaultAgentResult());
+
+      await agentCommand(
+        {
+          message: "original user prompt",
+          to: "+1555",
+        },
+        runtime,
+      );
+
+      const prompts = vi.mocked(runEmbeddedPiAgent).mock.calls.map((call) => call[0]?.prompt);
+      expect(prompts).toEqual([
+        "original user prompt",
+        "Continue where you left off. The previous model attempt failed or timed out.",
+      ]);
+    });
+  });
+
   it("keeps stored session model override when models allowlist is empty", async () => {
     await withTempHome(async (home) => {
       const store = path.join(home, "sessions.json");

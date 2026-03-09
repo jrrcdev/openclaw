@@ -72,6 +72,7 @@ import { buildOutboundSessionContext } from "../infra/outbound/session-context.j
 import { getRemoteSkillEligibility } from "../infra/skills-remote.js";
 import { normalizeAgentId } from "../routing/session-key.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
+import { normalizeInputProvenance } from "../sessions/input-provenance.js";
 import { applyVerboseOverride } from "../sessions/level-overrides.js";
 import { applyModelOverrideToSessionEntry } from "../sessions/model-overrides.js";
 import { resolveSendPolicy } from "../sessions/send-policy.js";
@@ -127,8 +128,19 @@ async function persistSessionEntry(params: PersistSessionEntryParams): Promise<v
   params.sessionStore[params.sessionKey] = persisted;
 }
 
-function resolveFallbackRetryPrompt(params: { body: string; isFallbackRetry: boolean }): string {
-  if (!params.isFallbackRetry) {
+function shouldPreserveFallbackRetryBody(
+  inputProvenance: AgentCommandOpts["inputProvenance"],
+): boolean {
+  const normalized = normalizeInputProvenance(inputProvenance);
+  return normalized?.kind === "inter_session" && normalized.sourceTool === "subagent_announce";
+}
+
+function resolveFallbackRetryPrompt(params: {
+  body: string;
+  isFallbackRetry: boolean;
+  inputProvenance: AgentCommandOpts["inputProvenance"];
+}): string {
+  if (!params.isFallbackRetry || shouldPreserveFallbackRetryBody(params.inputProvenance)) {
     return params.body;
   }
   return "Continue where you left off. The previous model attempt failed or timed out.";
@@ -179,6 +191,7 @@ function runAgentAttempt(params: {
   const effectivePrompt = resolveFallbackRetryPrompt({
     body: params.body,
     isFallbackRetry: params.isFallbackRetry,
+    inputProvenance: params.opts.inputProvenance,
   });
   const bootstrapPromptWarningSignaturesSeen = resolveBootstrapWarningSignaturesSeen(
     params.sessionEntry?.systemPromptReport,
