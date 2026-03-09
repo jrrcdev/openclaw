@@ -62,6 +62,64 @@ async function writeSessionStoreFast(
   await fs.writeFile(storePath, JSON.stringify(store), "utf-8");
 }
 
+describe("initSessionState response usage defaults", () => {
+  it("applies the configured response usage default to new sessions", async () => {
+    const storePath = await createStorePath("response-usage-default-");
+    const cfg = {
+      session: { store: storePath },
+      agents: {
+        defaults: {
+          responseUsageDefault: "tokens",
+        },
+      },
+    } as OpenClawConfig;
+
+    const result = await initSessionState({
+      ctx: {
+        Body: "hello",
+        SessionKey: "agent:main:main",
+      },
+      cfg,
+      commandAuthorized: true,
+    });
+
+    expect(result.isNewSession).toBe(true);
+    expect(result.sessionEntry.responseUsage).toBe("tokens");
+  });
+
+  it("preserves an existing session response usage override", async () => {
+    const storePath = await createStorePath("response-usage-preserve-");
+    await writeSessionStoreFast(storePath, {
+      "agent:main:main": {
+        sessionId: "sess-existing",
+        updatedAt: Date.now(),
+        responseUsage: "full",
+      },
+    });
+
+    const cfg = {
+      session: { store: storePath },
+      agents: {
+        defaults: {
+          responseUsageDefault: "tokens",
+        },
+      },
+    } as OpenClawConfig;
+
+    const result = await initSessionState({
+      ctx: {
+        Body: "hello again",
+        SessionKey: "agent:main:main",
+      },
+      cfg,
+      commandAuthorized: true,
+    });
+
+    expect(result.isNewSession).toBe(false);
+    expect(result.sessionEntry.responseUsage).toBe("full");
+  });
+});
+
 describe("initSessionState thread forking", () => {
   it("forks a new session from the parent session file", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

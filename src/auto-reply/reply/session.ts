@@ -433,7 +433,7 @@ export async function initSessionState(params: {
     verboseLevel: persistedVerbose ?? baseEntry?.verboseLevel,
     reasoningLevel: persistedReasoning ?? baseEntry?.reasoningLevel,
     ttsAuto: persistedTtsAuto ?? baseEntry?.ttsAuto,
-    responseUsage: baseEntry?.responseUsage,
+    responseUsage: baseEntry?.responseUsage ?? cfg.agents?.defaults?.responseUsageDefault,
     modelOverride: persistedModelOverride ?? baseEntry?.modelOverride,
     providerOverride: persistedProviderOverride ?? baseEntry?.providerOverride,
     label: persistedLabel ?? baseEntry?.label,

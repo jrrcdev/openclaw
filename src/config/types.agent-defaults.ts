@@ -189,6 +189,8 @@ export type AgentDefaultsConfig = {
   verboseDefault?: "off" | "on" | "full";
   /** Default elevated level when no /elevated directive is present. */
   elevatedDefault?: "off" | "on" | "ask" | "full";
+  /** Default response-usage footer level when no /usage directive is present. */
+  responseUsageDefault?: "off" | "tokens" | "full";
   /** Default block streaming level when no override is present. */
   blockStreamingDefault?: "off" | "on";
   /**

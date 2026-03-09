@@ -353,7 +353,8 @@ export function applyAgentDefaults(cfg: OpenClawConfig): OpenClawConfig {
   const hasSubMax =
     typeof defaults?.subagents?.maxConcurrent === "number" &&
     Number.isFinite(defaults.subagents.maxConcurrent);
-  if (hasMax && hasSubMax) {
+  const hasResponseUsageDefault = defaults?.responseUsageDefault !== undefined;
+  if (hasMax && hasSubMax && hasResponseUsageDefault) {
     return cfg;
   }
 
@@ -367,6 +368,11 @@ export function applyAgentDefaults(cfg: OpenClawConfig): OpenClawConfig {
   const nextSubagents = defaults?.subagents ? { ...defaults.subagents } : {};
   if (!hasSubMax) {
     nextSubagents.maxConcurrent = DEFAULT_SUBAGENT_MAX_CONCURRENT;
+    mutated = true;
+  }
+
+  if (!hasResponseUsageDefault) {
+    nextDefaults.responseUsageDefault = "tokens";
     mutated = true;
   }
 
