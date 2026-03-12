@@ -105,6 +105,8 @@ function buildApiKeyCredential(
 
 export type WriteOAuthCredentialsOptions = {
   syncSiblingAgents?: boolean;
+  /** Override profile id (e.g. openai-codex:work). When set, used instead of provider:email. */
+  profileId?: string;
 };
 
 /** Resolve real path, returning null if the target doesn't exist. */
@@ -163,7 +165,10 @@ export async function writeOAuthCredentials(
 ): Promise<string> {
   const email =
     typeof creds.email === "string" && creds.email.trim() ? creds.email.trim() : "default";
-  const profileId = `${provider}:${email}`;
+  const profileId =
+    typeof options?.profileId === "string" && options.profileId.trim()
+      ? options.profileId.trim()
+      : `${provider}:${email}`;
   const resolvedAgentDir = path.resolve(resolveAuthAgentDir(agentDir));
   const targetAgentDirs = options?.syncSiblingAgents
     ? resolveSiblingAgentDirs(resolvedAgentDir)

@@ -159,6 +159,32 @@ describe("writeOAuthCredentials", () => {
     ).rejects.toThrow();
   });
 
+  it("uses profileId override when provided (multiple Codex accounts)", async () => {
+    const env = await setupAuthTestEnv("openclaw-oauth-profile-");
+    lifecycle.setStateDir(env.stateDir);
+
+    const creds = {
+      refresh: "refresh-work",
+      access: "access-work",
+      expires: Date.now() + 60_000,
+    } satisfies OAuthCredentials;
+
+    const profileId = await writeOAuthCredentials("openai-codex", creds, env.agentDir, {
+      profileId: "openai-codex:work",
+    });
+    expect(profileId).toBe("openai-codex:work");
+
+    const parsed = await readAuthProfilesForAgent<{
+      profiles?: Record<string, OAuthCredentials & { type?: string }>;
+    }>(env.agentDir);
+    expect(parsed.profiles?.["openai-codex:work"]).toMatchObject({
+      refresh: "refresh-work",
+      access: "access-work",
+      type: "oauth",
+    });
+    expect(parsed.profiles?.["openai-codex:default"]).toBeUndefined();
+  });
+
   it("writes OAuth credentials to all sibling agent dirs when syncSiblingAgents=true", async () => {
     tempStateDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-oauth-sync-"));
     process.env.OPENCLAW_STATE_DIR = tempStateDir;

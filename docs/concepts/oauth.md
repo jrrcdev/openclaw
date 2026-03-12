@@ -139,6 +139,15 @@ Then configure auth per-agent (wizard) and route chats to the right agent.
 
 `auth-profiles.json` supports multiple profile IDs for the same provider.
 
+**OpenAI Codex:** To add a second (or more) account, run login with a profile id so each login gets its own profile instead of overwriting `openai-codex:default`:
+
+```bash
+openclaw models auth login --provider openai-codex --profile-id work
+# or full id: --profile-id openai-codex:work
+```
+
+Then use `/model openai-codex/gpt-5.4@openai-codex:work` in a channel to pin that account.
+
 Pick which profile is used:
 
 - globally via config ordering (`auth.order`)

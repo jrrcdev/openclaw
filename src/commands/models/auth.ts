@@ -263,6 +263,8 @@ type LoginOptions = {
   provider?: string;
   method?: string;
   setDefault?: boolean;
+  /** Profile id for this provider (e.g. openai-codex:work). Enables multiple accounts. */
+  profileId?: string;
 };
 
 export function resolveRequestedLoginProviderOrThrow(
@@ -297,6 +299,19 @@ function credentialMode(credential: AuthProfileCredential): "api_key" | "oauth" 
   return "oauth";
 }
 
+const OPENAI_CODEX_PROVIDER_ID = "openai-codex";
+
+function resolveOpenAICodexProfileId(profileIdInput?: string): string | undefined {
+  const trimmed = profileIdInput?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed.startsWith(`${OPENAI_CODEX_PROVIDER_ID}:`)) {
+    return trimmed;
+  }
+  return `${OPENAI_CODEX_PROVIDER_ID}:${trimmed}`;
+}
+
 async function runBuiltInOpenAICodexLogin(params: {
   opts: LoginOptions;
   runtime: RuntimeEnv;
@@ -316,8 +331,10 @@ async function runBuiltInOpenAICodexLogin(params: {
     throw new Error("OpenAI Codex OAuth did not return credentials.");
   }
 
+  const explicitProfileId = resolveOpenAICodexProfileId(params.opts.profileId);
   const profileId = await writeOAuthCredentials("openai-codex", creds, params.agentDir, {
     syncSiblingAgents: true,
+    ...(explicitProfileId ? { profileId: explicitProfileId } : {}),
   });
   await updateConfig((cfg) => {
     let next = applyAuthProfileConfig(cfg, {
