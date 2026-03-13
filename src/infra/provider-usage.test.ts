@@ -181,6 +181,33 @@ describe("provider usage loading", () => {
     expect(mockFetch).toHaveBeenCalled();
   });
 
+  it("maps auth profile ids onto usage snapshots when multiple auths are provided", async () => {
+    const mockFetch = createProviderUsageFetch(async (url) => {
+      if (url.includes("api.anthropic.com")) {
+        return makeResponse(200, {
+          five_hour: { utilization: 10, resets_at: "2026-01-07T01:00:00Z" },
+        });
+      }
+      return makeResponse(404, "not found");
+    });
+
+    const summary = await loadUsageWithAuth(
+      [
+        { provider: "anthropic", token: "token-default", profileId: "anthropic:default" },
+        { provider: "anthropic", token: "token-work", profileId: "anthropic:work" },
+      ],
+      mockFetch,
+    );
+
+    const claudeSnapshots = summary.providers.filter((p) => p.provider === "anthropic");
+    expect(claudeSnapshots).toHaveLength(2);
+    const claudeDefault = claudeSnapshots.find((p) => p.profileId === "anthropic:default");
+    const claudeWork = claudeSnapshots.find((p) => p.profileId === "anthropic:work");
+    expect(claudeDefault?.profileId).toBe("anthropic:default");
+    expect(claudeWork?.profileId).toBe("anthropic:work");
+    expect(mockFetch).toHaveBeenCalled();
+  });
+
   it("handles nested MiniMax usage payloads", async () => {
     await expectMinimaxUsage(
       {

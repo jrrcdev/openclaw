@@ -91,7 +91,14 @@ export async function loadProviderUsageSummary(
   );
 
   const snapshots = await Promise.all(tasks);
-  const providers = snapshots.filter((entry) => {
+  const snapshotsWithProfiles = snapshots.map((entry, index) => {
+    const auth = auths[index];
+    if (auth?.profileId) {
+      return { ...entry, profileId: auth.profileId };
+    }
+    return entry;
+  });
+  const providers = snapshotsWithProfiles.filter((entry) => {
     if (entry.windows.length > 0) {
       return true;
     }

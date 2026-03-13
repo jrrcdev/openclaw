@@ -10,6 +10,12 @@ export type ProviderUsageSnapshot = {
   windows: UsageWindow[];
   plan?: string;
   error?: string;
+  /**
+   * Optional auth profile identifier when usage is scoped to a single profile
+   * (for example, multiple OpenAI Codex accounts under the same provider id).
+   * When undefined, the snapshot represents provider-level aggregation.
+   */
+  profileId?: string;
 };
 
 export type UsageSummary = {

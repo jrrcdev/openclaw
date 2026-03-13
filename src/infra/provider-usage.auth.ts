@@ -20,6 +20,11 @@ export type ProviderAuth = {
   provider: UsageProviderId;
   token: string;
   accountId?: string;
+  /**
+   * Optional auth profile id for this token (for example openai-codex:work).
+   * Used to surface per-profile usage snapshots for providers that support it.
+   */
+  profileId?: string;
 };
 
 function parseGoogleToken(apiKey: string): { token: string } | null {
@@ -193,6 +198,53 @@ async function resolveOAuthToken(params: {
   return null;
 }
 
+async function resolveCodexOAuthTokens(params: { agentDir?: string }): Promise<ProviderAuth[]> {
+  const provider: UsageProviderId = "openai-codex";
+  const cfg = loadConfig();
+  const store = ensureAuthProfileStore(params.agentDir, {
+    allowKeychainPrompt: false,
+  });
+  const order = resolveAuthProfileOrder({
+    cfg,
+    store,
+    provider,
+  });
+  const deduped = dedupeProfileIds(order);
+  const auths: ProviderAuth[] = [];
+
+  for (const profileId of deduped) {
+    const cred = store.profiles[profileId];
+    if (!cred || (cred.type !== "oauth" && cred.type !== "token")) {
+      continue;
+    }
+    try {
+      const resolved = await resolveApiKeyForProfile({
+        cfg: undefined,
+        store,
+        profileId,
+        agentDir: params.agentDir,
+      });
+      if (!resolved) {
+        continue;
+      }
+      const token = resolved.apiKey;
+      auths.push({
+        provider,
+        token,
+        accountId:
+          cred.type === "oauth" && "accountId" in cred
+            ? (cred as { accountId?: string }).accountId
+            : undefined,
+        profileId,
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  return auths;
+}
+
 function resolveOAuthProviders(agentDir?: string): UsageProviderId[] {
   const store = ensureAuthProfileStore(agentDir, {
     allowKeychainPrompt: false,
@@ -254,6 +306,14 @@ export async function resolveProviderAuths(params: {
       if (apiKey) {
         auths.push({ provider, token: apiKey });
       }
+      continue;
+    }
+
+    if (provider === "openai-codex") {
+      const codexAuths = await resolveCodexOAuthTokens({
+        agentDir: params.agentDir,
+      });
+      auths.push(...codexAuths);
       continue;
     }
 
